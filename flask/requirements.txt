@@ -1,0 +1,21 @@
+# Requirements for YOLO Object Detection API
+
+# YOLO Framework
+ultralytics
+
+# Web Framework for API
+fastapi
+uvicorn
+
+# Image Processing
+pillow
+opencv-python
+
+# Multipart handling for file uploads
+python-multipart
+
+# HTTP requests for testing
+requests
+
+# Optional: Progress bars
+tqdm

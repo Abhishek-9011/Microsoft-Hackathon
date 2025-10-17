@@ -1,5 +1,4 @@
 import React from "react";
-// 1. IMPORT CHART LIBRARIES
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -11,7 +10,8 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import ImageUploadDialog from "./ImageUploadDialog";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 ChartJS.register(
   CategoryScale,
@@ -23,19 +23,14 @@ ChartJS.register(
   Legend
 );
 
-// ====================================================================
-// COMPONENT 1: Training Loss Chart (for line graph)
-// This should be in a separate file in a real project, but is included here for integration.
-// ====================================================================
 const TrainingLossChart = ({ lossData }) => {
   const data = {
-    // Labels representing Epochs
     labels: lossData.map((_, i) => `Epoch ${i + 1}`),
     datasets: [
       {
         label: "Validation Loss",
         data: lossData,
-        borderColor: "rgb(37, 99, 235)", // Blue-600
+        borderColor: "rgb(37, 99, 235)",
         backgroundColor: "rgba(37, 99, 235, 0.4)",
         tension: 0.3,
         pointBackgroundColor: "rgb(255, 255, 255)",
@@ -70,9 +65,6 @@ const TrainingLossChart = ({ lossData }) => {
   return <Line options={options} data={data} />;
 };
 
-// ====================================================================
-// COMPONENT 2: Confusion Matrix Table
-// ====================================================================
 const ConfusionMatrixTable = ({ matrixData }) => {
   if (!matrixData || matrixData.length === 0) return <div>No matrix data.</div>;
 
@@ -131,11 +123,7 @@ const ConfusionMatrixTable = ({ matrixData }) => {
   );
 };
 
-// ====================================================================
-// MAIN LANDING PAGE COMPONENT
-// ====================================================================
 const LandingPage = () => {
-  // 2. DUMMY DATA FOR GRAPHS AND METRICS
   const dummyMetrics = {
     mAP_50: 0.685,
     precision: 0.81,
@@ -146,8 +134,7 @@ const LandingPage = () => {
   const dummyLossHistory = [
     0.85, 0.72, 0.61, 0.55, 0.48, 0.41, 0.35, 0.31, 0.28, 0.26,
   ];
-
-  // Dummy Confusion Matrix data for 5 classes (OxygenTank, FireExtinguisher, FirstAidBox, FireAlarm, SafetySwitchPanel)
+  const navigate = useNavigate();
   const dummyConfusionMatrix = [
     [
       "Class",
@@ -173,7 +160,6 @@ const LandingPage = () => {
 
   return (
     <div className="relative min-h-screen bg-black text-white overflow-hidden font-sans">
-      {/* Background Video (stars.mp4) */}
       <video
         autoPlay
         loop
@@ -182,10 +168,8 @@ const LandingPage = () => {
         src="/stars.mp4"
       ></video>
 
-      {/* Overlay for gradient and stars effect */}
       <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
 
-      {/* Navigation */}
       <nav className="sticky top-0 z-30 flex justify-between items-center p-4 sm:p-6 lg:p-8 ">
         <div className="flex items-center space-x-2">
           {/* Logo/Text */}
@@ -247,43 +231,56 @@ const LandingPage = () => {
           </li>
         </ul>
 
-
         {/* Mobile Menu Icon Placeholder */}
         <div className="lg:hidden">
           {/* You would place a mobile menu icon/toggle logic here */}
         </div>
       </nav>
 
-      {/* ==================================================================== */}
-      {/* 1. HERO SECTION */}
-      {/* ==================================================================== */}
       <header
         id="home"
         className="relative z-10 flex flex-col items-center justify-center pt-10 sm:pt-20 pb-40 text-center px-4 min-h-[calc(100vh-10rem)]"
       >
-        {/* Heading */}
         <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-extrabold mb-4 tracking-wide relative max-w-full">
           Title
         </h1>
 
-        {/* Subtitle */}
         <p className="text-lg sm:text-xl lg:text-2xl mb-6 sm:mb-8 text-gray-300">
           Explore the infinite.
         </p>
 
-        {/* ASTRONAUT IMAGE - CORRECTED RESPONSIVE SIZING */}
         <img
           src="/astronaut.png"
           alt="Astronaut"
-          // Corrected non-standard classes (w-25, w-30, etc.) to standard Tailwind utility classes
           className="absolute z-[-1] w-24 sm:w-32 md:w-44 lg:w-56 top-1/4 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rotate-[-15deg] opacity-75 transition-all duration-500 ease-out"
         />
 
-        {/* Button - Kept above the astronaut with z-index */}
-        <ImageUploadDialog />
+        <Button
+          onClick={() => {
+            navigate("/upload");
+          }}
+          className="relative z-10 flex items-center px-6 py-3 sm:px-8 sm:py-4 bg-white text-black rounded-full text-base sm:text-xl font-semibold hover:bg-gray-200 transition-colors duration-300 shadow-xl"
+        >
+          <>
+            Start Detecting
+            <svg
+              className="ml-2 w-4 h-4 sm:w-5 sm:h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              ></path>
+            </svg>
+          </>
+        </Button>
       </header>
 
-      {/* Earth Image - ADJUSTED POSITIONING TO BE ON FIRST SCREEN */}
       <div
         className="absolute top-90 sm:bottom-[-50px] md:bottom-[-100px] left-1/2 transform -translate-x-1/2 max-w-none 
                     w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] md:w-[700px] md:h-[550px] lg:w-[900px] lg:h-[600px] 
@@ -291,11 +288,10 @@ const LandingPage = () => {
         style={{ backgroundImage: "url(/earth.png)" }}
       ></div>
 
-      
       <section className="relative mt-[80px]  z-10 py-20 px-4 bg-gradient-to-b from-transparent to-gray-900/50">
         {" "}
         <div className=" mt-10 container mx-auto max-w-4xl text-center">
-          <h2  className="text-4xl sm:text-5xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-white">
+          <h2 className="text-4xl sm:text-5xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-white">
             AI-Powered Safety Monitoring for Space
           </h2>
           <p className="text-lg sm:text-xl text-gray-300 leading-relaxed">
@@ -311,9 +307,7 @@ const LandingPage = () => {
           </p>
         </div>
       </section>
-      {/* ==================================================================== */}
-      {/* 2. HOW IT WORKS SECTION */}
-      {/* ==================================================================== */}
+
       <section
         id="how-it-works"
         className=" relative z-10 py-10 px-4 bg-gray-900/50 "
@@ -408,9 +402,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ==================================================================== */}
-      {/* 3. PERFORMANCE METRICS SECTION (New Section) */}
-      {/* ==================================================================== */}
       <section
         id="performance-metrics"
         className="relative z-10 py-20 px-4 bg-gray-900/50"
@@ -475,9 +466,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ==================================================================== */}
-      {/* 4. CONTACT US SECTION (Moved to 4th section) */}
-      {/* ==================================================================== */}
       <section
         id="contact-us"
         className="relative z-10 py-24 px-4 bg-gray-900/50"
@@ -516,9 +504,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* ==================================================================== */}
-      {/* 5. FOOTER */}
-      {/* ==================================================================== */}
       <footer className="relative z-20 bg-gray-900/50 pt-16 pb-12 px-4 border-t border-blue-600/30 shadow-[0_-5px_20px_rgba(37,99,235,0.2)]">
         <div className="container mx-auto max-w-6xl text-gray-400">
           {/* Main Footer Links Grid */}
