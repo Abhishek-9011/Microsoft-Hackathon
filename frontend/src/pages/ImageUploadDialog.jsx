@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -11,6 +11,13 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
   const [isUploading, setIsUploading] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+
+  // Camera effect - fixed
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [cameraActive]);
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -22,15 +29,11 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
       });
       streamRef.current = stream;
       setCameraActive(true);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
     } catch (error) {
       console.error("Error accessing camera:", error);
       alert("Unable to access camera. Please check permissions.");
@@ -46,7 +49,7 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
   };
 
   const captureImage = () => {
-    if (videoRef.current) {
+    if (videoRef.current && videoRef.current.videoWidth > 0) {
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       canvas.width = videoRef.current.videoWidth;
@@ -54,10 +57,13 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
       context.drawImage(videoRef.current, 0, 0);
       
       canvas.toBlob((blob) => {
-        const imageUrl = URL.createObjectURL(blob);
-        const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
-        setSelectedImage({ url: imageUrl, file: file });
-      }, 'image/jpeg');
+        if (blob) {
+          const imageUrl = URL.createObjectURL(blob);
+          const file = new File([blob], 'captured-image.jpg', { type: 'image/jpeg' });
+          setSelectedImage({ url: imageUrl, file: file });
+          stopCamera(); // Stop camera after capture
+        }
+      }, 'image/jpeg', 0.8);
     }
   };
 
@@ -81,15 +87,16 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
 
       const data = await response.json();
       
+      // Fixed: Use the correct image URL construction
       const processedImageUrl = `http://localhost:5001${data.image_url}`;
       
       onImageUpload({
         original: selectedImage.url,
         processed: processedImageUrl,
-        description: data.summary.description,
-        detailedAnalysis: data.summary.detailed_analysis,
-        detections: data.detections,
-        summary: data.summary,
+        description: data.summary?.description || "No description available",
+        detailedAnalysis: data.summary?.detailed_analysis || "No detailed analysis available",
+        detections: data.detections || [],
+        summary: data.summary || { total_objects: 0, unique_classes: 0 },
         timestamp: new Date().toLocaleString()
       });
 
@@ -107,7 +114,9 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
       uploadToBackend(selectedImage.file);
       setIsDialogOpen(false);
       setSelectedImage(null);
-      stopCamera();
+      if (cameraActive) {
+        stopCamera();
+      }
     }
   };
 
@@ -199,6 +208,7 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
                     ref={videoRef}
                     autoPlay
                     playsInline
+                    muted
                     className="w-full h-48 object-cover"
                   />
                 </div>

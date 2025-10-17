@@ -1,14 +1,21 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ImageUploadDialog from "./ImageUploadDialog";
 
 const ImageUploadPage = () => {
   const [uploadedImages, setUploadedImages] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [loadingUseCases, setLoadingUseCases] = useState({});
 
   const handleImageUpload = (imageData) => {
-    setUploadedImages(prev => [imageData, ...prev]);
+    setUploadedImages((prev) => [imageData, ...prev]);
   };
 
   const handleProcessing = (processing) => {
@@ -16,7 +23,7 @@ const ImageUploadPage = () => {
   };
 
   const removeImage = (index) => {
-    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+    setUploadedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const downloadImage = async (imageUrl, filename) => {
@@ -24,8 +31,8 @@ const ImageUploadPage = () => {
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
+      const a = document.createElement("a");
+      a.style.display = "none";
       a.href = url;
       a.download = filename;
       document.body.appendChild(a);
@@ -33,32 +40,138 @@ const ImageUploadPage = () => {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      console.error('Error downloading image:', error);
+      console.error("Error downloading image:", error);
+      alert("Error downloading image. Please try again.");
     }
   };
 
   const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-      alert('Description copied to clipboard!');
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        alert("Description copied to clipboard!");
+      })
+      .catch((err) => {
+        console.error("Failed to copy text: ", err);
+        alert("Failed to copy text to clipboard.");
+      });
+  };
+
+  const getUseCases = async (imageIndex, detectionIndex) => {
+    const imageData = uploadedImages[imageIndex];
+    const detection = imageData.detections[detectionIndex];
+    
+    if (!detection) return;
+
+    // Set loading state
+    setLoadingUseCases(prev => ({
+      ...prev,
+      [`${imageIndex}-${detectionIndex}`]: true
+    }));
+
+    try {
+      const response = await fetch('http://localhost:5001/get-single-use-case', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          object: detection.class
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch use cases');
+      }
+
+      const data = await response.json();
+      
+      // Update the detection with the new use case
+      const updatedImages = [...uploadedImages];
+      updatedImages[imageIndex].detections[detectionIndex] = {
+        ...detection,
+        uses: data.use_case,
+        uses_source: data.source
+      };
+      
+      setUploadedImages(updatedImages);
+      
+    } catch (error) {
+      console.error('Error fetching use cases:', error);
+      alert('Failed to fetch use cases. Please try again.');
+    } finally {
+      // Clear loading state
+      setLoadingUseCases(prev => ({
+        ...prev,
+        [`${imageIndex}-${detectionIndex}`]: false
+      }));
+    }
+  };
+
+  const getAllUseCases = async (imageIndex) => {
+    const imageData = uploadedImages[imageIndex];
+    const objects = imageData.detections.map(det => det.class);
+    
+    if (!objects.length) return;
+
+    // Set loading state for all detections in this image
+    const loadingStates = {};
+    imageData.detections.forEach((_, detectionIndex) => {
+      loadingStates[`${imageIndex}-${detectionIndex}`] = true;
     });
+    setLoadingUseCases(prev => ({ ...prev, ...loadingStates }));
+
+    try {
+      const response = await fetch('http://localhost:5001/get-use-cases', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          objects: objects
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch use cases');
+      }
+
+      const data = await response.json();
+      
+      // Update all detections with their use cases
+      const updatedImages = [...uploadedImages];
+      updatedImages[imageIndex].detections = updatedImages[imageIndex].detections.map((det, detIndex) => ({
+        ...det,
+        uses: data.use_cases[det.class] || det.uses,
+        uses_source: data.source
+      }));
+      
+      setUploadedImages(updatedImages);
+      
+    } catch (error) {
+      console.error('Error fetching use cases:', error);
+      alert('Failed to fetch use cases. Please try again.');
+    } finally {
+      // Clear loading states for all detections in this image
+      const clearStates = {};
+      imageData.detections.forEach((_, detectionIndex) => {
+        clearStates[`${imageIndex}-${detectionIndex}`] = false;
+      });
+      setLoadingUseCases(prev => ({ ...prev, ...clearStates }));
+    }
   };
 
   return (
     <div className="relative min-h-screen bg-black text-white overflow-hidden">
-      <div 
+      <div
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat opacity-70"
         style={{ backgroundImage: "url('/starImage.png')" }}
       ></div>
-
       <div className="fixed inset-0 bg-gradient-to-t from-black to-transparent"></div>
 
       <nav className="relative z-30 flex justify-between items-center p-6 lg:p-8">
         <div className="flex items-center space-x-2">
-          <span className="text-2xl font-bold text-blue-400">
-            Title
-          </span>
+          <span className="text-2xl font-bold text-blue-400">Cosmic AI</span>
         </div>
       </nav>
 
@@ -68,17 +181,16 @@ const ImageUploadPage = () => {
             Cosmic Object Detection
           </h1>
           <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-            Upload images to detect objects using advanced AI and get detailed cosmic analysis of what's in your images.
+            Upload images to detect objects using advanced AI and get cosmic
+            analysis.
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          {/* Upload Card */}
           <Card className="shadow-2xl border border-blue-600/30 bg-gray-900/70 backdrop-blur-sm">
             <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg border-b border-blue-500/50">
               <CardTitle className="flex mt-4 items-center gap-3 text-2xl">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
                 Upload Cosmic Image
               </CardTitle>
               <CardDescription className="text-blue-100">
@@ -92,69 +204,41 @@ const ImageUploadPage = () => {
                     {isProcessing ? (
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
                     ) : (
-                      <svg className="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                      <svg
+                        className="w-12 h-12 text-blue-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        ></path>
                       </svg>
                     )}
                   </div>
                   <h3 className="text-xl font-semibold text-white mb-3">
-                    {isProcessing ? 'Analyzing Cosmic Data...' : 'Ready for Upload?'}
+                    {isProcessing
+                      ? "Analyzing Cosmic Data..."
+                      : "Ready for Upload?"}
                   </h3>
-                  <p className="text-gray-300 mb-6 max-w-sm mx-auto">
-                    {isProcessing 
-                      ? 'AI is scanning for objects and generating cosmic descriptions...' 
-                      : 'Click the button below to upload an image for cosmic object detection.'
-                    }
-                  </p>
                   <div className="flex justify-center items-center">
-                   <ImageUploadDialog 
-                     onImageUpload={handleImageUpload}
-                     onProcessing={handleProcessing}
-                   />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
-                  <div className="text-center p-4 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-blue-500 transition-all duration-300">
-                    <div className="w-10 h-10 bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-3 border border-green-500/30">
-                      <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
-                    </div>
-                    <h4 className="font-semibold text-white">YOLOv8</h4>
-                    <p className="text-sm text-gray-300 mt-1">Object Detection</p>
-                  </div>
-                  
-                  <div className="text-center p-4 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-blue-500 transition-all duration-300">
-                    <div className="w-10 h-10 bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-3 border border-blue-500/30">
-                      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
-                      </svg>
-                    </div>
-                    <h4 className="font-semibold text-white">AI Analysis</h4>
-                    <p className="text-sm text-gray-300 mt-1">Cosmic Description</p>
-                  </div>
-                  
-                  <div className="text-center p-4 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-purple-500 transition-all duration-300">
-                    <div className="w-10 h-10 bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-3 border border-purple-500/30">
-                      <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                      </svg>
-                    </div>
-                    <h4 className="font-semibold text-white">Light Speed</h4>
-                    <p className="text-sm text-gray-300 mt-1">Instant Results</p>
+                    <ImageUploadDialog
+                      onImageUpload={handleImageUpload}
+                      onProcessing={handleProcessing}
+                    />
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Results Card */}
           <Card className="shadow-2xl border border-green-600/30 bg-gray-900/70 backdrop-blur-sm">
             <CardHeader className="bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-t-lg border-b border-green-500/50">
               <CardTitle className="flex mt-4 items-center gap-3 text-2xl">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
                 Cosmic Analysis Results
               </CardTitle>
               <CardDescription className="text-green-100">
@@ -163,133 +247,237 @@ const ImageUploadPage = () => {
             </CardHeader>
             <CardContent className="p-8">
               {uploadedImages.length > 0 ? (
-                <div className="space-y-6">
-                  <div className="space-y-4">
-                    {uploadedImages.map((imageData, index) => (
-                      <div key={index} className="bg-gray-800/50 rounded-lg shadow-2xl overflow-hidden border border-gray-700 hover:border-blue-500/50 transition-all duration-300">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-                          <div className="text-center">
-                            <h4 className="font-semibold text-white mb-2">Original Image</h4>
-                            <img
-                              src={imageData.original}
-                              alt={`Original ${index + 1}`}
-                              className="w-full h-48 object-cover rounded-lg border border-gray-600"
-                            />
-                          </div>
-                          
-                          <div className="text-center">
-                            <h4 className="font-semibold text-white mb-2">Cosmic Detection</h4>
-                            <img
-                              src={imageData.processed}
-                              alt={`Processed ${index + 1}`}
-                              className="w-full h-48 object-cover rounded-lg border border-gray-600"
-                            />
-                          </div>
+                <div className="space-y-6 max-h-[600px] overflow-y-auto">
+                  {uploadedImages.map((imageData, index) => (
+                    <div
+                      key={index}
+                      className="bg-gray-800/50 rounded-lg shadow-2xl overflow-hidden border border-gray-700 hover:border-blue-500/50 transition-all duration-300"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                        <div className="text-center">
+                          <h4 className="font-semibold text-white mb-2">
+                            Original Image
+                          </h4>
+                          <img
+                            src={imageData.original}
+                            alt="Original"
+                            className="w-full h-48 object-contain rounded-lg border border-gray-600"
+                          />
                         </div>
-                        
-                        <div className="p-4 border-t border-gray-700 bg-gray-900/50">
-                          <Tabs defaultValue="simple" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2 bg-gray-800 p-1 rounded-lg">
-                              <TabsTrigger 
-                                value="simple"
-                                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-md transition-all"
-                              >
-                                Cosmic Summary
-                              </TabsTrigger>
-                              <TabsTrigger 
-                                value="detailed"
-                                className="data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md transition-all"
-                              >
-                                Deep Analysis
-                              </TabsTrigger>
-                            </TabsList>
-                            
-                            <TabsContent value="simple" className="space-y-2 mt-4">
-                              <div className="flex justify-between items-start">
-                                <p className="text-gray-200 text-sm flex-1">
-                                  {imageData.description}
-                                </p>
-                                <button 
-                                  onClick={() => copyToClipboard(imageData.description)}
-                                  className="ml-2 text-blue-400 hover:text-blue-300 text-xs bg-blue-900/30 px-3 py-2 rounded border border-blue-500/30 hover:border-blue-400 transition-all"
-                                  title="Copy to clipboard"
-                                >
-                                  Copy
-                                </button>
-                              </div>
-                            </TabsContent>
-                            
-                            <TabsContent value="detailed" className="space-y-2 mt-4">
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <p className="text-gray-200 text-sm whitespace-pre-line">
-                                    {imageData.detailedAnalysis}
-                                  </p>
-                                  <div className="mt-2 text-xs text-gray-400">
-                                    <p>Total cosmic objects: {imageData.summary.total_objects}</p>
-                                    <p>Unique classes detected: {imageData.summary.unique_classes}</p>
-                                  </div>
-                                </div>
-                                <button 
-                                  onClick={() => copyToClipboard(imageData.detailedAnalysis)}
-                                  className="ml-2 text-green-400 hover:text-green-300 text-xs bg-green-900/30 px-3 py-2 rounded border border-green-500/30 hover:border-green-400 transition-all"
-                                  title="Copy to clipboard"
-                                >
-                                  Copy
-                                </button>
-                              </div>
-                            </TabsContent>
-                          </Tabs>
-                        </div>
-                        
-                        <div className="p-4 border-t border-gray-700 bg-gray-800/30">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-400">
-                              Analyzed: {imageData.timestamp}
-                            </span>
-                            <div className="flex gap-2">
-                              <button 
-                                onClick={() => downloadImage(imageData.processed, `cosmic-detection-${index + 1}.jpg`)}
-                                className="text-blue-400 hover:text-blue-300 text-sm font-medium px-4 py-2 bg-blue-900/30 rounded-md border border-blue-500/30 hover:border-blue-400 transition-all"
-                              >
-                                Download
-                              </button>
-                              <button 
-                                onClick={() => removeImage(index)}
-                                className="text-red-400 hover:text-red-300 text-sm font-medium px-4 py-2 bg-red-900/30 rounded-md border border-red-500/30 hover:border-red-400 transition-all"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
+                        <div className="text-center">
+                          <h4 className="font-semibold text-white mb-2">
+                            Cosmic Detection
+                          </h4>
+                          <img
+                            src={imageData.processed}
+                            alt="Processed"
+                            className="w-full h-48 object-contain rounded-lg border border-gray-600"
+                          />
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  
-                  <div className="bg-green-900/30 border border-green-500/30 rounded-lg p-4">
-                    <div className="flex items-center">
-                      <svg className="w-5 h-5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
-                      <span className="text-green-300 font-medium">
-                        {uploadedImages.length} cosmic image(s) analyzed with object detection
-                      </span>
+
+                      {/* Tabs */}
+                      <div className="p-4 border-t border-gray-700 bg-gray-900/50">
+                        <Tabs defaultValue="simple" className="w-full">
+                          <TabsList className="grid w-full grid-cols-2 bg-gray-800 p-1 rounded-lg">
+                            <TabsTrigger
+                              value="simple"
+                              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-md transition-all"
+                            >
+                              Cosmic Summary
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="detailed"
+                              className="data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md transition-all"
+                            >
+                              Deep Analysis
+                            </TabsTrigger>
+                          </TabsList>
+
+                          <TabsContent
+                            value="simple"
+                            className="space-y-2 mt-4"
+                          >
+                            <div className="flex justify-between items-start gap-2">
+                              <p className="text-gray-200 text-sm flex-1">
+                                {imageData.description}
+                              </p>
+                              <button
+                                onClick={() =>
+                                  copyToClipboard(imageData.description)
+                                }
+                                className="flex-shrink-0 text-blue-400 hover:text-blue-300 text-xs bg-blue-900/30 px-3 py-2 rounded border border-blue-500/30 hover:border-blue-400 transition-all"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent
+                            value="detailed"
+                            className="space-y-2 mt-4"
+                          >
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="flex-1">
+                                <p className="text-gray-200 text-sm whitespace-pre-line">
+                                  {imageData.detailedAnalysis}
+                                </p>
+                                <div className="mt-2 text-xs text-gray-400">
+                                  <p>
+                                    Total objects:{" "}
+                                    {imageData.summary.total_objects}
+                                  </p>
+                                  <p>
+                                    Unique classes:{" "}
+                                    {imageData.summary.unique_classes}
+                                  </p>
+                                </div>
+
+                                {/* Get All Use Cases Button */}
+                                {imageData.detections && imageData.detections.length > 0 && (
+                                  <div className="mt-3 mb-4">
+                                    <button
+                                      onClick={() => getAllUseCases(index)}
+                                      disabled={Object.values(loadingUseCases).some(state => state)}
+                                      className="text-purple-400 hover:text-purple-300 text-xs font-medium px-3 py-1 bg-purple-900/30 rounded border border-purple-500/30 hover:border-purple-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      {Object.values(loadingUseCases).some(state => state) 
+                                        ? "Loading Use Cases..." 
+                                        : "Get All Use Cases"}
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Object Detections */}
+                                {imageData.detections &&
+                                  imageData.detections.length > 0 && (
+                                    <div className="mt-3 space-y-3">
+                                      <p className="text-xs font-semibold text-gray-300">
+                                        Detected Objects:
+                                      </p>
+                                      {imageData.detections.map((det, i) => (
+                                        <div
+                                          key={i}
+                                          className="text-xs text-gray-200 ml-2 p-3 bg-gray-800/30 rounded-lg border border-gray-700"
+                                        >
+                                          <div className="flex justify-between items-start">
+                                            <div className="flex-1">
+                                              <strong className="text-blue-300">
+                                                {det.class}
+                                              </strong> 
+                                              <span className="text-gray-400 ml-2">
+                                                — Confidence: {(det.confidence * 100).toFixed(1)}%
+                                              </span>
+                                              {det.estimated_depth && (
+                                                <span className="text-gray-400 ml-2">
+                                                  • Depth: {det.estimated_depth.toFixed(2)}
+                                                </span>
+                                              )}
+                                              {det.estimated_width_cm && (
+                                                <span className="text-gray-400 ml-2">
+                                                  • Width: {det.estimated_width_cm} cm
+                                                </span>
+                                              )}
+                                              {det.estimated_height_cm && (
+                                                <span className="text-gray-400 ml-2">
+                                                  • Height: {det.estimated_height_cm} cm
+                                                </span>
+                                              )}
+                                            </div>
+                                            <button
+                                              onClick={() => getUseCases(index, i)}
+                                              disabled={loadingUseCases[`${index}-${i}`]}
+                                              className="flex-shrink-0 text-green-400 hover:text-green-300 text-xs bg-green-900/30 px-2 py-1 rounded border border-green-500/30 hover:border-green-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed ml-2"
+                                            >
+                                              {loadingUseCases[`${index}-${i}`] ? "..." : "Get Uses"}
+                                            </button>
+                                          </div>
+                                          
+                                          {det.uses && (
+                                            <div className="mt-2 pt-2 border-t border-gray-700">
+                                              <details className="cursor-pointer">
+                                                <summary className="font-medium text-gray-300 flex items-center">
+                                                  <span>Uses</span>
+                                                  {det.uses_source === 'gemini' && (
+                                                    <span className="ml-2 text-xs bg-green-900/50 text-green-300 px-1 rounded">
+                                                      AI
+                                                    </span>
+                                                  )}
+                                                </summary>
+                                                <p className="text-gray-400 mt-1 pl-4 text-xs leading-relaxed">
+                                                  {det.uses}
+                                                </p>
+                                              </details>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                              </div>
+                              <button
+                                onClick={() =>
+                                  copyToClipboard(imageData.detailedAnalysis)
+                                }
+                                className="flex-shrink-0 text-green-400 hover:text-green-300 text-xs bg-green-900/30 px-3 py-2 rounded border border-green-500/30 hover:border-green-400 transition-all"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </TabsContent>
+                        </Tabs>
+                      </div>
+
+                      <div className="p-4 border-t border-gray-700 bg-gray-800/30 flex justify-between items-center">
+                        <span className="text-sm text-gray-400">
+                          Analyzed: {imageData.timestamp}
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() =>
+                              downloadImage(
+                                imageData.processed,
+                                `cosmic-detection-${index + 1}.jpg`
+                              )
+                            }
+                            className="text-blue-400 hover:text-blue-300 text-sm font-medium px-4 py-2 bg-blue-900/30 rounded-md border border-blue-500/30 hover:border-blue-400 transition-all"
+                          >
+                            Download
+                          </button>
+                          <button
+                            onClick={() => removeImage(index)}
+                            className="text-red-400 hover:text-red-300 text-sm font-medium px-4 py-2 bg-red-900/30 rounded-md border border-red-500/30 hover:border-red-400 transition-all"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="w-24 h-24 mx-auto bg-gray-800/50 rounded-full flex items-center justify-center mb-6 border border-gray-600">
-                    <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  <div className="w-16 h-16 mx-auto bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                    <svg
+                      className="w-8 h-8 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      ></path>
                     </svg>
                   </div>
                   <h3 className="text-xl font-semibold text-white mb-2">
                     Awaiting Cosmic Data
                   </h3>
                   <p className="text-gray-300 max-w-sm mx-auto">
-                    Upload an image to begin cosmic object detection and AI-generated analysis.
+                    Upload an image to begin cosmic object detection and AI
+                    analysis.
                   </p>
                 </div>
               )}
@@ -299,9 +487,7 @@ const ImageUploadPage = () => {
       </div>
 
       <div
-        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 max-w-none 
-                   w-[300px] h-[300px] sm:w-[500px] sm:h-[500px] md:w-[700px] md:h-[550px] 
-                   bg-no-repeat bg-center bg-contain z-0 opacity-50"
+        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-[500px] h-[500px] bg-no-repeat bg-center bg-contain opacity-50"
         style={{ backgroundImage: "url(/earth.png)" }}
       ></div>
     </div>
