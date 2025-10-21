@@ -12,12 +12,14 @@ import google.generativeai as genai
 import math
 import threading
 from concurrent.futures import ThreadPoolExecutor
+import numpy as np
 
 # ---------- CONFIG ----------
 GEMINI_API_KEY = "AIzaSyDu5X0K0hZbc9OmEicZODdngTX9fJGj_-U"
 DEPTH_MODEL_NAME = "Intel/dpt-large"
 REFERENCE_OBJECT_NAME = "credit_card"
 REFERENCE_OBJECT_WIDTH_CM = 8.56
+REFERENCE_OBJECT_HEIGHT_CM = 5.4
 # ----------------------------
 
 app = Flask(__name__)
@@ -66,7 +68,7 @@ KNOWN_OBJECT_SIZES = {
     "FireHydrant": {"avg_width": 40.0, "avg_height": 120.0, "type": "cylinder"},
     "FireAlarm": {"avg_width": 15.0, "avg_height": 15.0, "type": "box"},
     
-    # Safety Equipment - ADDED YOUR 7 OBJECTS
+    # Safety Equipment
     "FirstAidBox": {"avg_width": 30.0, "avg_height": 40.0, "type": "box"},
     "FirstAidKit": {"avg_width": 30.0, "avg_height": 40.0, "type": "box"},
     "SafetyCone": {"avg_width": 30.0, "avg_height": 45.0, "type": "cone"},
@@ -86,6 +88,11 @@ KNOWN_OBJECT_SIZES = {
     "CreditCard": {"avg_width": 8.56, "avg_height": 5.4, "type": "card"},
 }
 
+# Camera calibration parameters (typical smartphone camera)
+CAMERA_FOCAL_LENGTH_PIXELS = 1000  # Approximate focal length in pixels
+CAMERA_SENSOR_WIDTH_CM = 3.2  # Typical smartphone sensor width
+CAMERA_SENSOR_HEIGHT_CM = 2.4  # Typical smartphone sensor height
+
 # Comprehensive fallback descriptions for your specific objects
 FALLBACK_DESCRIPTIONS = {
     # Gas Cylinders and Tanks
@@ -99,7 +106,7 @@ FALLBACK_DESCRIPTIONS = {
     "FireHydrant": "A connection point for firefighters to access water supply. Located along streets and in buildings for emergency firefighting operations.",
     "FireAlarm": "A safety device that detects smoke, heat, or fire and alerts occupants through audible and visual signals. Crucial for early fire detection and evacuation.",
     
-    # Safety Equipment - ADDED YOUR 7 OBJECTS
+    # Safety Equipment
     "FirstAidBox": "A container storing medical supplies and equipment for emergency first aid treatment. Contains bandages, antiseptics, gloves, and basic medical tools. Essential in workplaces, schools, and public areas for immediate medical response.",
     "FirstAidKit": "A collection of medical supplies and equipment for providing initial medical treatment. Contains bandages, antiseptics, gloves, and basic medical tools for emergency situations.",
     "SafetyCone": "A cone-shaped marker used for road safety, construction zones, and hazard areas. Provides visual warning to redirect traffic and mark dangerous areas.",
@@ -186,35 +193,44 @@ def estimate_depth(image, bbox):
         print(f"Depth estimation error: {e}")
         return None
 
-def estimate_size_using_depth(depth_value, pixel_width, pixel_height, focal_length=1000):
+def estimate_size_using_depth(depth_value, pixel_width, pixel_height, image_width, image_height):
     """
-    Estimate real-world size using depth information
-    focal_length: approximate focal length in pixels (typical for smartphone cameras)
+    Estimate real-world size using depth information with proper camera geometry
     """
     if depth_value is None:
-        return None, None
+        return None, None, "depth_failed"
     
     try:
-        # Convert depth to distance (simplified approach)
-        distance = max(0.1, depth_value * 10)  # Simplified conversion
+        # MiDaS depth maps are inverse depth (disparity), convert to approximate distance
+        # This is an approximation - MiDaS gives relative depth, not absolute distance
+        depth_scale = 10.0  # Scaling factor to convert to approximate meters
+        distance_meters = max(0.5, depth_value * depth_scale)  # Minimum 0.5 meters
         
-        # Calculate real-world size using similar triangles
-        # size_real = (size_pixels * distance) / focal_length
-        width_cm = (pixel_width * distance) / focal_length * 100  # Convert to cm
-        height_cm = (pixel_height * distance) / focal_length * 100  # Convert to cm
+        # Calculate real-world size using perspective projection
+        # size_real = (size_pixels * sensor_size_real * distance) / (focal_length_pixels * image_size_pixels)
+        sensor_width_cm = CAMERA_SENSOR_WIDTH_CM
+        sensor_height_cm = CAMERA_SENSOR_HEIGHT_CM
         
-        return round(width_cm, 2), round(height_cm, 2)
-    except:
-        return None, None
+        width_cm = (pixel_width * sensor_width_cm * distance_meters * 100) / (CAMERA_FOCAL_LENGTH_PIXELS * image_width)
+        height_cm = (pixel_height * sensor_height_cm * distance_meters * 100) / (CAMERA_FOCAL_LENGTH_PIXELS * image_height)
+        
+        # Apply reasonable constraints based on object type
+        width_cm = max(1.0, min(width_cm, 1000.0))  # Constrain between 1cm and 10m
+        height_cm = max(1.0, min(height_cm, 1000.0))
+        
+        return round(width_cm, 2), round(height_cm, 2), "depth_based"
+    except Exception as e:
+        print(f"Depth-based size estimation error: {e}")
+        return None, None, "depth_error"
 
-def estimate_size_using_reference(detections, ref_class, ref_real_width, ref_real_height):
+def estimate_size_using_reference(detections, ref_class, ref_real_width, ref_real_height, target_pixel_width, target_pixel_height):
     """
     Estimate sizes using a reference object in the image
     """
     ref_detection = next((det for det in detections if det["class"] == ref_class), None)
     
     if not ref_detection:
-        return None, None
+        return None, None, "no_reference"
     
     try:
         # Get reference object pixel dimensions
@@ -226,39 +242,56 @@ def estimate_size_using_reference(detections, ref_class, ref_real_width, ref_rea
         width_ratio = ref_real_width / ref_pixel_width
         height_ratio = ref_real_height / ref_pixel_height
         
-        return width_ratio, height_ratio
-    except:
-        return None, None
+        # Apply ratios to target object
+        estimated_width_cm = target_pixel_width * width_ratio
+        estimated_height_cm = target_pixel_height * height_ratio
+        
+        return round(estimated_width_cm, 2), round(estimated_height_cm, 2), "reference_object"
+    except Exception as e:
+        print(f"Reference-based size estimation error: {e}")
+        return None, None, "reference_error"
 
 def estimate_size_using_known_averages(object_class, pixel_width, pixel_height, image_width, image_height):
     """
-    Estimate size based on known average object sizes and image composition
+    Estimate size based on known average object sizes with improved scaling
     """
     if object_class not in KNOWN_OBJECT_SIZES:
-        return None, None
+        return None, None, "unknown_object"
     
     try:
         known_size = KNOWN_OBJECT_SIZES[object_class]
         avg_width = known_size["avg_width"]
         avg_height = known_size["avg_height"]
         
-        # Estimate based on typical object proportions in images
-        # This is a heuristic approach
-        if known_size["type"] == "person":
-            # People are typically photographed at certain distances
-            estimated_width = avg_width * (pixel_width / 100)  # Heuristic scaling
-            estimated_height = avg_height * (pixel_height / 200)  # Heuristic scaling
-        elif known_size["type"] == "vehicle":
-            estimated_width = avg_width * (pixel_width / 300)
-            estimated_height = avg_height * (pixel_height / 200)
-        else:
-            # For other objects, use simpler scaling
-            estimated_width = avg_width * (pixel_width / 150)
-            estimated_height = avg_height * (pixel_height / 150)
+        # Calculate object area relative to image area
+        image_area = image_width * image_height
+        object_area = pixel_width * pixel_height
+        area_ratio = object_area / image_area
         
-        return round(estimated_width, 2), round(estimated_height, 2)
-    except:
-        return None, None
+        # Use area ratio to estimate if object is closer/further than typical
+        # Typical object occupies about 10-30% of image when at normal distance
+        typical_area_ratio = 0.2
+        
+        # Scale factor based on area comparison
+        if area_ratio > 0:
+            scale_factor = math.sqrt(typical_area_ratio / area_ratio)
+            # Constrain scale factor to reasonable range
+            scale_factor = max(0.3, min(scale_factor, 3.0))
+        else:
+            scale_factor = 1.0
+        
+        # Apply scaling to known averages
+        estimated_width = avg_width * scale_factor
+        estimated_height = avg_height * scale_factor
+        
+        # Apply reasonable constraints
+        estimated_width = max(5.0, min(estimated_width, 500.0))
+        estimated_height = max(5.0, min(estimated_height, 500.0))
+        
+        return round(estimated_width, 2), round(estimated_height, 2), "known_average"
+    except Exception as e:
+        print(f"Known-average size estimation error: {e}")
+        return None, None, "average_error"
 
 def get_object_uses_fallback(object_name):
     """Get immediate object description using fallback"""
@@ -359,10 +392,9 @@ def detect_objects():
                     "class_id": cls,
                     "bbox": bbox,
                     "estimated_depth": depth,
-                    # Don't include uses in initial detection to make it faster
                 })
 
-        # REAL-WORLD SIZE ESTIMATION FOR ALL OBJECTS
+        # IMPROVED REAL-WORLD SIZE ESTIMATION FOR ALL OBJECTS
         for det in detection_data:
             x1, y1, x2, y2 = det["bbox"]
             pixel_width = x2 - x1
@@ -372,39 +404,42 @@ def detect_objects():
             estimated_height_cm = None
             size_method = "none"
             
-            # Method 1: Try using credit card as reference
-            width_ratio, height_ratio = estimate_size_using_reference(
-                detection_data, "CreditCard", 8.56, 5.4
-            )
-            
-            if width_ratio and height_ratio:
-                estimated_width_cm = round(pixel_width * width_ratio, 2)
-                estimated_height_cm = round(pixel_height * height_ratio, 2)
-                size_method = "reference_object"
-            
-            # Method 2: Try using depth estimation
-            elif det["estimated_depth"] is not None:
-                width_cm, height_cm = estimate_size_using_depth(
-                    det["estimated_depth"], pixel_width, pixel_height
+            # Method 1: Try using credit card as reference (most accurate if available)
+            if any(d["class"] == "CreditCard" for d in detection_data):
+                width_cm, height_cm, method = estimate_size_using_reference(
+                    detection_data, "CreditCard", REFERENCE_OBJECT_WIDTH_CM, REFERENCE_OBJECT_HEIGHT_CM,
+                    pixel_width, pixel_height
                 )
                 if width_cm and height_cm:
                     estimated_width_cm = width_cm
                     estimated_height_cm = height_cm
-                    size_method = "depth_based"
+                    size_method = method
             
-            # Method 3: Use known average sizes with heuristic scaling
-            else:
-                width_cm, height_cm = estimate_size_using_known_averages(
+            # Method 2: Try using depth estimation (if reference not available)
+            if estimated_width_cm is None and det["estimated_depth"] is not None:
+                width_cm, height_cm, method = estimate_size_using_depth(
+                    det["estimated_depth"], pixel_width, pixel_height, image_width, image_height
+                )
+                if width_cm and height_cm:
+                    estimated_width_cm = width_cm
+                    estimated_height_cm = height_cm
+                    size_method = method
+            
+            # Method 3: Use known average sizes with improved scaling (fallback)
+            if estimated_width_cm is None:
+                width_cm, height_cm, method = estimate_size_using_known_averages(
                     det["class"], pixel_width, pixel_height, image_width, image_height
                 )
                 if width_cm and height_cm:
                     estimated_width_cm = width_cm
                     estimated_height_cm = height_cm
-                    size_method = "known_average"
+                    size_method = method
             
             det["estimated_width_cm"] = estimated_width_cm
             det["estimated_height_cm"] = estimated_height_cm
             det["size_estimation_method"] = size_method
+            det["pixel_width"] = pixel_width
+            det["pixel_height"] = pixel_height
 
         simple_description = generate_detection_description(detection_data)
         detailed_description = get_detailed_detection_info(detection_data)

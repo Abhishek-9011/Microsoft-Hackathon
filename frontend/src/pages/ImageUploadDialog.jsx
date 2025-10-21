@@ -227,7 +227,7 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
                   <Button
                     onClick={stopCamera}
                     variant="outline"
-                    className="flex-1 border-gray-600 text-white hover:bg-gray-800"
+                    className="flex-1 bg-gray border-gray-600 text-white hover:bg-gray-800"
                     disabled={isUploading}
                   >
                     Stop Camera
@@ -265,7 +265,7 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
                 <Button
                   onClick={() => setSelectedImage(null)}
                   variant="outline"
-                  className="border-gray-600 text-white hover:bg-gray-800"
+                  className="border-gray-600 bg-gray text-white hover:bg-gray-800"
                   disabled={isUploading}
                 >
                   Cancel

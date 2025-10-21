@@ -135,21 +135,27 @@ const LandingPage = () => {
     0.85, 0.72, 0.61, 0.55, 0.48, 0.41, 0.35, 0.31, 0.28, 0.26,
   ];
   const navigate = useNavigate();
-  const dummyConfusionMatrix = [
-    [
-      "Class",
-      "GT: OxygenTank",
-      "GT: FireExtinguisher",
-      "GT: FirstAidBox",
-      "GT: FireAlarm",
-      "GT: SafetySwitchPanel",
-    ],
-    ["Pred: OxygenTank", 145, 2, 0, 0, 0],
-    ["Pred: FireExtinguisher", 3, 168, 0, 0, 1],
-    ["Pred: FirstAidBox", 1, 0, 160, 0, 0],
-    ["Pred: FireAlarm", 0, 0, 0, 155, 0],
-    ["Pred: SafetySwitchPanel", 0, 0, 0, 0, 150],
-  ];
+ const dummyConfusionMatrix = [
+  [
+    "Class",
+    "GT: OxygenTank",
+    "GT: NitrogenTank",
+    "GT: FirstAidBox",
+    "GT: FireAlarm",
+    "GT: SafetySwitchPanel",
+    "GT: EmergencyPhone",
+    "GT: FireExtinguisher",
+    "GT: Background",
+  ],
+  ["Pred: OxygenTank", 1026, 8, 1, 2, 0, 0, 0, 87],
+  ["Pred: NitrogenTank", 21, 906, 6, 0, 0, 24, 0, 78],
+  ["Pred: FirstAidBox", 2, 0, 448, 1, 0, 0, 4, 15],
+  ["Pred: FireAlarm", 0, 1, 157, 1, 0, 0, 0, 10],
+  ["Pred: SafetySwitchPanel", 0, 0, 0, 0, 226, 0, 0, 17],
+  ["Pred: EmergencyPhone", 0, 2, 7, 0, 0, 226, 3, 10],
+  ["Pred: FireExtinguisher", 1, 9, 4, 0, 0, 0, 293, 36],
+  ["Pred: Background", 489, 609, 319, 165, 218, 199, 351, 0],
+];
 
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
@@ -174,7 +180,8 @@ const LandingPage = () => {
         <div className="flex items-center space-x-2">
           {/* Logo/Text */}
           <span className="text-xl sm:text-2xl font-bold text-blue-400">
-            Title
+            Cosmic AI
+
           </span>
         </div>
 
@@ -241,8 +248,10 @@ const LandingPage = () => {
         id="home"
         className="relative z-10 flex flex-col items-center justify-center pt-10 sm:pt-20 pb-40 text-center px-4 min-h-[calc(100vh-10rem)]"
       >
-        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl font-extrabold mb-4 tracking-wide relative max-w-full">
-          Title
+        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-8xl font-extrabold mb-4 tracking-wide relative max-w-full">
+          Cosmic AI
+
+          
         </h1>
 
         <p className="text-lg sm:text-xl lg:text-2xl mb-6 sm:mb-8 text-gray-300">
@@ -308,99 +317,100 @@ const LandingPage = () => {
         </div>
       </section>
 
-      <section
-        id="how-it-works"
-        className=" relative z-10 py-10 px-4 bg-gray-900/50 "
-      >
-        <div className="container mx-auto max-w-6xl">
-          <h2 className="text-4xl sm:text-5xl font-bold text-center mb-16 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-white">
-            How It Works
-          </h2>
+<section
+  id="how-it-works"
+  className="relative z-10 py-10 px-4 bg-gray-900/50"
+>
+  <div className="container mx-auto max-w-6xl">
+    <h2 className="text-4xl sm:text-5xl font-bold text-center mb-16 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-white">
+      How It Works
+    </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {/* Step 1: Register */}
-            <div className="p-8 border border-gray-700 rounded-xl hover:border-blue-500 transition-all duration-300 shadow-xl bg-gray-900/50">
-              <div className="text-blue-400 mb-4">
-                <svg
-                  className="w-12 h-12 mx-auto"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 11c0 3.517-1.025 6.802-2.903 9.76a1.001 1.001 0 01-1.632-.303L6 17m3-4a4 4 0 11-8 0 4 4 0 018 0zm-3 0h.01M16 12a4 4 0 100-8 4 4 0 000 8zm0 0h.01M21 21v-7a2 2 0 00-2-2h-3"
-                  ></path>
-                </svg>
-              </div>
-              <h3 className="text-2xl font-semibold text-center mb-3">
-                1. Register for Blastoff
-              </h3>
-              <p className="text-gray-400 text-center">
-                Create your cosmic profile and secure your spot on the mission
-                manifest for the event.
-              </p>
-            </div>
-
-            {/* Step 2: Explore */}
-            <div className="p-8 border border-gray-700 rounded-xl hover:border-blue-500 transition-all duration-300 shadow-xl bg-gray-900/50">
-              <div className="text-blue-400 mb-4">
-                <svg
-                  className="w-12 h-12 mx-auto"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 6.253v13m0-13C10.832 5.477 9.206 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.832 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.832 5 16.5 5S19.832 5.477 21 6.253v13C19.832 18.477 18.168 18 16.5 18s-3.332.477-4.5 1.253"
-                  ></path>
-                </svg>
-              </div>
-              <h3 className="text-2xl font-semibold text-center mb-3">
-                2. Navigate the Cosmos
-              </h3>
-              <p className="text-gray-400 text-center">
-                Browse through all our unique competitive events, workshops, and
-                proshow details.
-              </p>
-            </div>
-
-            {/* Step 3: Participate */}
-            <div className="p-8 border border-gray-700 rounded-xl hover:border-blue-500 transition-all duration-300 shadow-xl bg-gray-900/50">
-              <div className="text-blue-400 mb-4">
-                <svg
-                  className="w-12 h-12 mx-auto"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
-                </svg>
-              </div>
-              <h3 className="text-2xl font-semibold text-center mb-3">
-                3. Claim Your Victory
-              </h3>
-              <p className="text-gray-400 text-center">
-                Participate, compete, and experience the best inter-galactic
-                festival to secure prizes.
-              </p>
-            </div>
-          </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+      {/* Step 1: Upload Image */}
+      <div className="p-8 border border-gray-700 rounded-xl hover:border-blue-500 transition-all duration-300 shadow-xl bg-gray-900/50">
+        <div className="text-blue-400 mb-4">
+          <svg
+            className="w-12 h-12 mx-auto"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M3 16l4-4 4 4m0 0l4-4 4 4m-8 0v6"
+            ></path>
+          </svg>
         </div>
-      </section>
+        <h3 className="text-2xl font-semibold text-center mb-3">
+          1. Upload the Image
+        </h3>
+        <p className="text-gray-400 text-center">
+          Start by uploading an image. Our system captures and prepares it for
+          AI-based analysis.
+        </p>
+      </div>
+
+      {/* Step 2: Object Detection */}
+      <div className="p-8 border border-gray-700 rounded-xl hover:border-blue-500 transition-all duration-300 shadow-xl bg-gray-900/50">
+        <div className="text-blue-400 mb-4">
+          <svg
+            className="w-12 h-12 mx-auto"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M13 16h-1v-4h-1m1-4h.01M12 8v.01M19 13a7 7 0 11-14 0 7 7 0 0114 0z"
+            ></path>
+          </svg>
+        </div>
+        <h3 className="text-2xl font-semibold text-center mb-3">
+          2. AI Detection
+        </h3>
+        <p className="text-gray-400 text-center">
+          The backend processes the image using our trained YOLO model to detect
+          and classify all visible objects accurately.
+        </p>
+      </div>
+
+      {/* Step 3: AI Insights */}
+      <div className="p-8 border border-gray-700 rounded-xl hover:border-blue-500 transition-all duration-300 shadow-xl bg-gray-900/50">
+        <div className="text-blue-400 mb-4">
+          <svg
+            className="w-12 h-12 mx-auto"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 8c.132 0 .263.007.393.02a4.002 4.002 0 017.607 1.48A5.002 5.002 0 0117 19H7a5 5 0 01-.001-10c.13 0 .26.007.389.02A4.002 4.002 0 0112 8z"
+            ></path>
+          </svg>
+        </div>
+        <h3 className="text-2xl font-semibold text-center mb-3">
+          3. Get Smart Insights
+        </h3>
+        <p className="text-gray-400 text-center">
+          Two advanced analyses follow — size estimation of detected objects and
+          detailed use-case explanation powered by Gemini AI.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
 
       <section
         id="performance-metrics"
@@ -412,19 +422,18 @@ const LandingPage = () => {
           </h2>
 
           {/* Key Metrics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-16 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-16 text-center">
             <div className="p-6 bg-gray-900/70 rounded-xl border-t-4 border-blue-500 shadow-2xl">
               <p className="text-5xl font-extrabold text-blue-400 mb-2">
-                {(dummyMetrics.mAP_50 * 100).toFixed(1)}%
+                78.1%
               </p>
               <p className="text-gray-300 text-lg">mAP@0.5 Score</p>
               <p className="text-xs text-gray-500 mt-1">
-                (Target: &gt; 40-50%)
               </p>
             </div>
             <div className="p-6 bg-gray-900/70 rounded-xl border-t-4 border-green-500 shadow-2xl">
               <p className="text-5xl font-extrabold text-green-400 mb-2">
-                {(dummyMetrics.precision * 100).toFixed(1)}%
+                88%
               </p>
               <p className="text-gray-300 text-lg">Precision</p>
               <p className="text-xs text-gray-500 mt-1">
@@ -433,30 +442,20 @@ const LandingPage = () => {
             </div>
             <div className="p-6 bg-gray-900/70 rounded-xl border-t-4 border-yellow-500 shadow-2xl">
               <p className="text-5xl font-extrabold text-yellow-400 mb-2">
-                {(dummyMetrics.recall * 100).toFixed(1)}%
+                70%
               </p>
               <p className="text-gray-300 text-lg">Recall</p>
               <p className="text-xs text-gray-500 mt-1">
                 (What percentage of objects were correctly detected.)
               </p>
             </div>
-            <div className="p-6 bg-gray-900/70 rounded-xl border-t-4 border-red-500 shadow-2xl">
-              <p className="text-5xl font-extrabold text-red-400 mb-2">
-                {dummyMetrics.inferenceSpeed_ms}ms
-              </p>
-              <p className="text-gray-300 text-lg">Inference Speed</p>
-              <p className="text-xs text-gray-500 mt-1">
-                (Time to predict per image.)
-              </p>
-            </div>
+            
           </div>
 
           {/* Graphs and Tables */}
           <div className="grid grid-cols-1 lg:grid-cols-1 gap-10">
             {/* Training Loss Graph */}
-            <div className="p-6 bg-gray-900/70 rounded-xl shadow-2xl h-[400px]">
-              <TrainingLossChart lossData={dummyLossHistory} />
-            </div>
+
 
             {/* Confusion Matrix */}
             <div className="p-6 bg-gray-900/70 rounded-xl shadow-2xl">
@@ -511,7 +510,7 @@ const LandingPage = () => {
             {/* Brand/Mission Statement (Takes up more space on desktop) */}
             <div className="col-span-2 md:col-span-2">
               <h4 className="text-4xl font-extrabold text-blue-400 mb-3 tracking-widest">
-                Title
+                CosmicAi
               </h4>
               <p className="text-base text-gray-300 max-w-sm">
                 The confluence of innovation and imagination. Join our mission
@@ -644,7 +643,7 @@ const LandingPage = () => {
           {/* Copyright */}
           <div className="text-center pt-6">
             <p className="text-sm text-gray-600">
-              &copy; {new Date().getFullYear()} Title. All cosmic rights
+              &copy; {new Date().getFullYear()} CosmicAi. All cosmic rights
               reserved. Developed with passion for the infinite.
             </p>
           </div>
