@@ -72,7 +72,7 @@
 
       try {
         const response = await fetch(
-          "https://microsoft-hackathon-4.onrender.com/get-single-use-case",
+          "http://localhost:5001/get-single-use-case",
           {
             method: "POST",
             headers: {
@@ -125,7 +125,7 @@
       setLoadingUseCases((prev) => ({ ...prev, ...loadingStates }));
 
       try {
-        const response = await fetch("https://microsoft-hackathon-4.onrender.com/get-use-cases", {
+        const response = await fetch("http://localhost:5001/get-use-cases", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

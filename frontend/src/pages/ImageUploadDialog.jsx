@@ -75,7 +75,7 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
       setIsUploading(true);
       onProcessing(true);
 
-      const response = await fetch('https://microsoft-hackathon-4.onrender.com/detect', {
+      const response = await fetch('http://localhost:5001/detect', {
         method: 'POST',
         body: formData,
       });
@@ -88,7 +88,7 @@ const ImageUploadDialog = ({ onImageUpload, onProcessing }) => {
       const data = await response.json();
       
       // Fixed: Use the correct image URL construction
-      const processedImageUrl = `https://microsoft-hackathon-4.onrender.com${data.image_url}`;
+      const processedImageUrl = `http://localhost:5001${data.image_url}`;
       
       onImageUpload({
         original: selectedImage.url,
