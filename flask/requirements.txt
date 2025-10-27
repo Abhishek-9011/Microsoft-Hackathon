@@ -1,15 +1,7 @@
-# Server
-gunicorn
-flask
-flask-cors
-
-# YOLO Framework
-ultralytics
-
-# Image Processing
-pillow
-opencv-python
-
-# Optional: Progress bars, requests
-tqdm
-requests
+Flask==3.1.2
+flask_cors==6.0.1
+numpy==2.3.4
+Pillow==12.0.0
+protobuf==6.33.0
+torch==2.9.0
+ultralytics==8.3.216
